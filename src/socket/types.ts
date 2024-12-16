@@ -14,24 +14,23 @@ interface AddressInfo {
 	ai_addr: SocketAddress;
 }
 
-interface SocketAddressIn {
+interface SocketAddressInternet {
 	s_addr: number;
 }
 
-interface SocketAddressIn4 {
+interface SocketAddressInternet4 {
 	sin4_family: number;
 	sin4_port: number;
-	sin4_addr: SocketAddressIn;
-	sin4_zero: string;
+	sin4_addr: SocketAddressInternet;
 }
 
 
-interface SocketAddressIn6 {
+interface SocketAddressInternet6 {
 	sin6_family: number;
 	sin6_port: number;
 	sin6_flowinfo: number;
 	sin6_scope_id: string;
-	sin6_addr:  SocketAddressIn;
+	sin6_addr:  SocketAddressInternet;
 }
 
-export { AddressInfo, SocketAddress, SocketAddressIn, SocketAddressIn4, SocketAddressIn6 };
+export { AddressInfo, SocketAddress, SocketAddressInternet, SocketAddressInternet4, SocketAddressInternet6 };
