@@ -55,6 +55,44 @@ function ip6ToBinary(ip: string): Uint8Array {
 	return new Uint8Array(bytes);
 }
 
+/**
+	* Takes in IPv4 Address and converts it to binary for socket use
+	* @param {Uint8Array} binaries - IPv4 Address in Binary Array
+	* @returns {string} - presentation representation of the IPv4 Address
+*/
+function binaryToIp4(binaries: Uint8Array): string {
+	const octets = new Array(4);
+	for (let i = 0; i < binaries.length; i++) {
+		// uInt8Array stores numbers in binary, but will output them as base 10
+		octets[i] = binaries[i].toString();
+	}
+
+	if (octets.length !== 4) {
+		throw new Error('Invalid IPv4 Address');
+	}
+
+	return octets.join('.');
+}
+
+/**
+	* Takes in IPv4 Address and converts it to binary for socket use
+	* @param {Uint8Array} binaries - IPv6 address in Binary Array
+	* @returns {string} - presentation representation of the IPv4 Address
+*/
+function binaryToIp6(binaries: Uint8Array): string {
+	const hextets = new Array(8);
+	for (let i = 0; i < binaries.length; i += 2) {
+		// uInt8Array stores numbers in binary, but will output them as base 10
+		hextets[i / 2] = (binaries[i] << 8 | binaries[i + 1]).toString(16);
+	}
+
+	if (hextets.length !== 8) {
+		throw new Error('Invalid IPv6 Address');
+	}
+
+	return hextets.join(':');
+}
+
 function ipToBinary(version: string, ip: string) {
 	if (version === 'ipv4') {
 		return ip4ToBinary(ip);
@@ -63,4 +101,13 @@ function ipToBinary(version: string, ip: string) {
 	}
 }
 
-export { ipToBinary };
+function binaryToIp(version: string, binary: Uint8Array) {
+	if (version === 'ipv4') {
+		return binaryToIp4(binary);
+	} else if (version === 'ipv6') {
+		return binaryToIp6(binary);
+	}
+}
+
+export { ipToBinary, binaryToIp };
+
