@@ -28,7 +28,6 @@ func (tcp *TCPConnection) CreateConnection() net.Listener {
 		fmt.Println("Error setting up TCP listener:", err)
 		panic(err)
 	}
-	defer conn.Close()
 
 	tcp.listener = conn
 
