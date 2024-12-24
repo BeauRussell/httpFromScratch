@@ -11,33 +11,33 @@ type socketConnection interface {
 }
 
 type TCPConnection struct {
-	host     string
-	port     int
-	listener net.Listener
+	Host     string
+	Port     int
+	Listener net.Listener
 }
 
 type UDPConnection struct {
-	host     string
-	port     int
-	listener *net.UDPConn
+	Host     string
+	Port     int
+	Listener *net.UDPConn
 }
 
 func (tcp *TCPConnection) CreateConnection() net.Listener {
-	conn, err := net.Listen("tcp", tcp.host+":"+strconv.Itoa(int(tcp.port)))
+	conn, err := net.Listen("tcp", tcp.Host+":"+strconv.Itoa(int(tcp.Port)))
 	if err != nil {
 		fmt.Println("Error setting up TCP listener:", err)
 		panic(err)
 	}
 
-	tcp.listener = conn
+	tcp.Listener = conn
 
 	return conn
 }
 
 func (udp *UDPConnection) CreateConnection() *net.UDPConn {
 	addr := net.UDPAddr{
-		Port: udp.port,
-		IP:   net.ParseIP(udp.host),
+		Port: udp.Port,
+		IP:   net.ParseIP(udp.Host),
 	}
 
 	conn, err := net.ListenUDP("udp", &addr)
@@ -46,6 +46,6 @@ func (udp *UDPConnection) CreateConnection() *net.UDPConn {
 		panic(err)
 	}
 
-	udp.listener = conn
+	udp.Listener = conn
 	return conn
 }
