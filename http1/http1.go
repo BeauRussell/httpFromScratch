@@ -26,7 +26,7 @@ func Server() {
 		Port: 8080,
 	}
 
-	listener := connection.CreateConnection()
+	listener := connection.CreateConnection("http/1.1")
 	defer listener.Close()
 
 	for {

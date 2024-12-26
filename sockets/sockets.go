@@ -1,7 +1,9 @@
 package sockets
 
 import (
+	"crypto/tls"
 	"fmt"
+	"httpFromScratch/tlsConfig"
 	"net"
 	"strconv"
 )
@@ -22,8 +24,13 @@ type UDPConnection struct {
 	Listener *net.UDPConn
 }
 
-func (tcp *TCPConnection) CreateConnection() net.Listener {
-	conn, err := net.Listen("tcp", tcp.Host+":"+strconv.Itoa(int(tcp.Port)))
+func (tcp *TCPConnection) CreateConnection(protos string) net.Listener {
+	tlsConfig, err := tlsConfig.CreateConfig("/home/beau/.tls/cert.pem", "/home/beau/.tls/key.pem", protos)
+	if err != nil {
+		fmt.Println("Cannot set up tcp. Error with TLS Config:", err)
+		panic(err)
+	}
+	conn, err := tls.Listen("tcp", tcp.Host+":"+strconv.Itoa(int(tcp.Port)), tlsConfig)
 	if err != nil {
 		fmt.Println("Error setting up TCP listener:", err)
 		panic(err)
