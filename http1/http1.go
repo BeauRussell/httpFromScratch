@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -45,7 +46,6 @@ func handleConnection(conn net.Conn) {
 			return
 		}
 		requestLine = strings.TrimSpace(requestLine)
-		fmt.Println("Request Line:", requestLine)
 
 		headers := make(map[string]string)
 		for {
@@ -63,11 +63,28 @@ func handleConnection(conn net.Conn) {
 			}
 		}
 
-		handleHTTPRequest(conn, requestLine, headers)
+		contentLength := 0
+		if val, ok := headers["Content-Length"]; ok {
+			contentLength, err = strconv.Atoi(val)
+			if err != nil {
+				fmt.Println("Invalid content length:", val)
+				return
+			}
+		}
+
+		body := make([]byte, contentLength)
+		_, err = io.ReadFull(reader, body)
+		if err != nil {
+			fmt.Println("Error reading body:", err)
+			return
+		}
+
+		handleHTTPRequest(conn, requestLine, headers, body)
 	}
 }
 
-func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]string) {
+func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]string, body []byte) {
+	fmt.Println(headers)
 	parts := strings.Split(requestLine, " ")
 	if len(parts) < 3 {
 		writeHTTPResponse(conn, 400, "Bad Request", "Invalid request line")
@@ -84,13 +101,13 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 			return
 		}
 		writeHTTPResponse(conn, 200, "OK", htmlString)
-	} else if method == "POST" {
+	} else if path == "/post" && method == "POST" {
 		htmlString, err := loadHTML("templates/post.html")
 		if err != nil {
 			fmt.Println("Cannot load HTML file to send to connection:", err)
 			return
 		}
-		htmlString = handlePostData(htmlString, headers)
+		htmlString = handlePostData(htmlString, headers, body)
 		writeHTTPResponse(conn, 200, "OK", htmlString)
 	} else {
 		htmlString, err := loadHTML("templates/404.html")
@@ -135,10 +152,10 @@ func loadHTML(filePath string) (string, error) {
 	return htmlString, nil
 }
 
-func handlePostData(html string, headers map[string]string) string {
+func handlePostData(html string, headers map[string]string, body []byte) string {
 	dataMap := map[string]string{
 		"Title":   "Testing Post",
-		"Content": "Hello World",
+		"Content": string(body),
 	}
 
 	var buf bytes.Buffer
