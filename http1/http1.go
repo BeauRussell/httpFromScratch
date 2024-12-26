@@ -14,6 +14,12 @@ import (
 	"strings"
 )
 
+const (
+	ContentTypeHTML  = "text/html"
+	ContentTypeJSON  = "application/json"
+	ContentTypePlain = "text/plain"
+)
+
 func Server() {
 	connection := sockets.TCPConnection{
 		Host: "localhost",
@@ -84,10 +90,9 @@ func handleConnection(conn net.Conn) {
 }
 
 func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]string, body []byte) {
-	fmt.Println(headers)
 	parts := strings.Split(requestLine, " ")
 	if len(parts) < 3 {
-		writeHTTPResponse(conn, 400, "Bad Request", "Invalid request line")
+		writeHTTPResponse(conn, 400, "Bad Request", ContentTypePlain, "Invalid request line")
 		return
 	}
 
@@ -100,33 +105,41 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 			fmt.Println("Cannot load HTML file to send to connection:", err)
 			return
 		}
-		writeHTTPResponse(conn, 200, "OK", htmlString)
-	} else if path == "/post" && method == "POST" {
-		htmlString, err := loadHTML("templates/post.html")
+		dataMap := map[string]string{
+			"Title":   "Testing Post",
+			"Content": string(body),
+		}
+
+		var buf bytes.Buffer
+
+		tmpl := template.Must(template.New("webpage").Parse(htmlString))
+		err = (tmpl.Execute(&buf, dataMap))
 		if err != nil {
-			fmt.Println("Cannot load HTML file to send to connection:", err)
+			fmt.Println("Failed to write to HTML template:", err)
 			return
 		}
-		htmlString = handlePostData(htmlString, headers, body)
-		writeHTTPResponse(conn, 200, "OK", htmlString)
+		writeHTTPResponse(conn, 200, "OK", ContentTypeHTML, htmlString)
+	} else if path == "/post" && method == "POST" {
+		jsonString := handlePostData(headers, body)
+		writeHTTPResponse(conn, 200, "OK", ContentTypeJSON, jsonString)
 	} else {
 		htmlString, err := loadHTML("templates/404.html")
 		if err != nil {
 			fmt.Println("Cannot load HTML file to send to connection:", err)
 			return
 		}
-		writeHTTPResponse(conn, 404, "Not Found", htmlString)
+		writeHTTPResponse(conn, 404, "Not Found", ContentTypeHTML, htmlString)
 	}
 }
 
-func writeHTTPResponse(conn net.Conn, statusCode int, statusText string, bodyText string) {
+func writeHTTPResponse(conn net.Conn, statusCode int, statusText string, contentType string, bodyText string) {
 	response := fmt.Sprintf(
 		"HTTP/1.1 %d %s\r\n"+
 			"Content-Length: %d\r\n"+
-			"Content-Type: text/html\r\n"+
+			"Content-Type: %s\r\n"+
 			"Connection: close\r\n"+
 			"\r\n%s",
-		statusCode, statusText, len(bodyText), bodyText)
+		statusCode, statusText, len(bodyText), contentType, bodyText)
 	conn.Write([]byte(response))
 }
 
@@ -152,23 +165,12 @@ func loadHTML(filePath string) (string, error) {
 	return htmlString, nil
 }
 
-func handlePostData(html string, headers map[string]string, body []byte) string {
-	dataMap := map[string]string{
-		"Title":   "Testing Post",
-		"Content": string(body),
-	}
-
-	var buf bytes.Buffer
+func handlePostData(headers map[string]string, body []byte) string {
 
 	switch headers["Content-Type"] {
 	case "application/json":
-		tmpl := template.Must(template.New("webpage").Parse(html))
-		err := (tmpl.Execute(&buf, dataMap))
-		if err != nil {
-			fmt.Println("Failed to write to HTML template:", err)
-			return ""
-		}
+		fmt.Println(string(body))
 	}
 
-	return buf.String()
+	return string(body)
 }
