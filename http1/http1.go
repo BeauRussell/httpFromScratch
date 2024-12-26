@@ -2,8 +2,10 @@ package http1
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"html/template"
 	"httpFromScratch/sockets"
 	"io"
 	"net"
@@ -76,22 +78,22 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 	fmt.Printf("Method: %s, Path: %s, Version %s\n", method, path, version)
 
 	if path == "/" {
-		htmlString, err := loadHTML("html/index.html")
+		htmlString, err := loadHTML("templates/index.html")
 		if err != nil {
 			fmt.Println("Cannot load HTML file to send to connection:", err)
 			return
 		}
 		writeHTTPResponse(conn, 200, "OK", htmlString)
 	} else if method == "POST" {
-		htmlString, err := loadHTML("html/post.html")
+		htmlString, err := loadHTML("templates/post.html")
 		if err != nil {
 			fmt.Println("Cannot load HTML file to send to connection:", err)
 			return
 		}
-		handlePostData(&htmlString, headers)
-		writeHTTPResponse(conn, 201, "OK", htmlString)
+		htmlString = handlePostData(htmlString, headers)
+		writeHTTPResponse(conn, 200, "OK", htmlString)
 	} else {
-		htmlString, err := loadHTML("html/404.html")
+		htmlString, err := loadHTML("templates/404.html")
 		if err != nil {
 			fmt.Println("Cannot load HTML file to send to connection:", err)
 			return
@@ -133,9 +135,23 @@ func loadHTML(filePath string) (string, error) {
 	return htmlString, nil
 }
 
-func handlePostData(html *string, headers map[string]string) {
+func handlePostData(html string, headers map[string]string) string {
+	dataMap := map[string]string{
+		"Title":   "Testing Post",
+		"Content": "Hello World",
+	}
+
+	var buf bytes.Buffer
+
 	switch headers["Content-Type"] {
 	case "application/json":
-		*html += "Hello World"
+		tmpl := template.Must(template.New("webpage").Parse(html))
+		err := (tmpl.Execute(&buf, dataMap))
+		if err != nil {
+			fmt.Println("Failed to write to HTML template:", err)
+			return ""
+		}
 	}
+
+	return buf.String()
 }
