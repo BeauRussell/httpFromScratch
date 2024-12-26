@@ -106,8 +106,7 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 			return
 		}
 		dataMap := map[string]string{
-			"Title":   "Testing Post",
-			"Content": string(body),
+			"Title": "Welcome to Go Server!",
 		}
 
 		var buf bytes.Buffer
@@ -118,7 +117,7 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 			fmt.Println("Failed to write to HTML template:", err)
 			return
 		}
-		writeHTTPResponse(conn, 200, "OK", ContentTypeHTML, htmlString)
+		writeHTTPResponse(conn, 200, "OK", ContentTypeHTML, buf.String())
 	} else if path == "/post" && method == "POST" {
 		jsonString := handlePostData(headers, body)
 		writeHTTPResponse(conn, 200, "OK", ContentTypeJSON, jsonString)
