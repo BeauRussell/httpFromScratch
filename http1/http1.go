@@ -82,6 +82,14 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 			return
 		}
 		writeHTTPResponse(conn, 200, "OK", htmlString)
+	} else if method == "POST" {
+		htmlString, err := loadHTML("html/post.html")
+		if err != nil {
+			fmt.Println("Cannot load HTML file to send to connection:", err)
+			return
+		}
+		handlePostData(&htmlString, headers)
+		writeHTTPResponse(conn, 201, "OK", htmlString)
 	} else {
 		htmlString, err := loadHTML("html/404.html")
 		if err != nil {
@@ -123,4 +131,11 @@ func loadHTML(filePath string) (string, error) {
 	}
 
 	return htmlString, nil
+}
+
+func handlePostData(html *string, headers map[string]string) {
+	switch headers["Content-Type"] {
+	case "application/json":
+		*html += "Hello World"
+	}
 }
