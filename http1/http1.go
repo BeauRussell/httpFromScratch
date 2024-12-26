@@ -2,9 +2,12 @@ package http1
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"httpFromScratch/sockets"
+	"io"
 	"net"
+	"os"
 	"strings"
 )
 
@@ -34,7 +37,9 @@ func handleConnection(conn net.Conn) {
 	for {
 		requestLine, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading request line:", err)
+			if !errors.Is(err, io.EOF) {
+				fmt.Println("Error reading request line:", err)
+			}
 			return
 		}
 		requestLine = strings.TrimSpace(requestLine)
@@ -71,9 +76,19 @@ func handleHTTPRequest(conn net.Conn, requestLine string, headers map[string]str
 	fmt.Printf("Method: %s, Path: %s, Version %s\n", method, path, version)
 
 	if path == "/" {
-		writeHTTPResponse(conn, 200, "OK", "<h1>Welcome to the GO HTTP server!</h1>")
+		htmlString, err := loadHTML("html/index.html")
+		if err != nil {
+			fmt.Println("Cannot load HTML file to send to connection:", err)
+			return
+		}
+		writeHTTPResponse(conn, 200, "OK", htmlString)
 	} else {
-		writeHTTPResponse(conn, 404, "Not Found", "<h1>Page not found</h1>")
+		htmlString, err := loadHTML("html/404.html")
+		if err != nil {
+			fmt.Println("Cannot load HTML file to send to connection:", err)
+			return
+		}
+		writeHTTPResponse(conn, 404, "Not Found", htmlString)
 	}
 }
 
@@ -86,4 +101,26 @@ func writeHTTPResponse(conn net.Conn, statusCode int, statusText string, bodyTex
 			"\r\n%s",
 		statusCode, statusText, len(bodyText), bodyText)
 	conn.Write([]byte(response))
+}
+
+func loadHTML(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("File to open file: %v\n", err)
+		return "", err
+	}
+	defer file.Close()
+
+	var htmlString string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		htmlString += scanner.Text() + "\n"
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+		return "", err
+	}
+
+	return htmlString, nil
 }
