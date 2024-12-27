@@ -2,6 +2,7 @@ package http2
 
 import (
 	"fmt"
+	"httpFromScratch/framePackaging"
 	"httpFromScratch/sockets"
 	"net"
 )
@@ -35,6 +36,7 @@ func handleHTTPConnection(conn net.Conn) {
 
 	buf := make([]byte, len(http2Preface))
 	_, err := conn.Read(buf)
+	fmt.Println(string(buf))
 	if err != nil || string(buf) != http2Preface {
 		fmt.Println("Invalid HTTP/2 preface:", err)
 		return
@@ -55,40 +57,23 @@ func handleHTTPConnection(conn net.Conn) {
 		return
 	}
 
-	// Simple HTTP setup
 	for {
-		frameHeader := make([]byte, 9)
-		_, err := conn.Read(frameHeader)
+		frame := &framePackaging.Frame{}
+		err := frame.ParseFrame(conn)
 		if err != nil {
-			fmt.Println("Error reading frame header:", err)
+			fmt.Println("Error parsing frame:", err)
 			return
 		}
 
-		// Parse frame header
-		length := int(frameHeader[0])<<16 | int(frameHeader[1])<<8 | int(frameHeader[2])
-		frameType := frameHeader[3]
-		flags := frameHeader[4]
-		streamId := int(frameHeader[5])<<24 | int(frameHeader[6])<<16 | int(frameHeader[7])<<8 | int(frameHeader[8])&0x7FFFFFFF
-
-		fmt.Printf("Received frame: type=%d, flags=%d, streamID=%d, length=%d\n", frameType, flags, streamId, length)
-
-		//Read the payload
-		payload := make([]byte, length)
-		_, err = conn.Read(payload)
-		if err != nil {
-			fmt.Println("error reading frame payload:", err)
-			return
-		}
-
-		// Process frames (simplified)
-		switch frameType {
-		case 0x01: // HEADERS
-			fmt.Println("Received HEADERS frame")
-		case 0x00: // DATA
-			fmt.Println("Received DATA frame")
-			fmt.Println("Payload:", string(payload))
+		switch frame.Type {
+		case framePackaging.FrameData:
+			fmt.Printf("DATA frame payload: %s\n", string(frame.Payload))
+		case framePackaging.FrameHeaders:
+			fmt.Println("HEADERS frame received")
+		case framePackaging.FrameSettings:
+			fmt.Println("SETTINGS frame received")
 		default:
-			fmt.Printf("Unknown frame type: %d\n", frameType)
+			fmt.Printf("Unknown frame type: %d\n", frame.Type)
 		}
 	}
 }

@@ -1,7 +1,9 @@
 package main
 
-import "httpFromScratch/http1"
+import (
+	"httpFromScratch/http2"
+)
 
 func main() {
-	http1.Server()
+	http2.Server()
 }
