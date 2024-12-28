@@ -1,9 +1,12 @@
 package framePackaging
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
+
+	"golang.org/x/net/http2/hpack"
 )
 
 type FrameType uint8
@@ -66,4 +69,71 @@ func (f *Frame) parseFrameHeader(reader io.Reader) error {
 		return fmt.Errorf("Frame length exceed maximum allowed size: %d", f.Length)
 	}
 	return nil
+}
+
+func (f *Frame) BuildHeadersFrame(headers map[string]string, streamID uint32) ([]byte, error) {
+	f.Type = FrameHeaders
+	f.StreamID = streamID
+	f.Flags = 0x04 // END_HEADERS
+
+	var headerBuf bytes.Buffer
+	encoder := hpack.NewEncoder(&headerBuf)
+	for key, value := range headers {
+		if err := encoder.WriteField(hpack.HeaderField{Name: key, Value: value}); err != nil {
+			return nil, fmt.Errorf("failed to encode header field: %w", err)
+		}
+	}
+	f.Payload = headerBuf.Bytes()
+	f.Length = uint32(len(f.Payload))
+
+	buf := bytes.Buffer{}
+
+	lenBytes, err := convertLengthToBytes(f.Length)
+	if err != nil {
+		return nil, err
+	}
+	buf.Write(lenBytes)
+	buf.WriteByte(byte(f.Type))
+	buf.WriteByte(f.Flags)
+	binary.Write(&buf, binary.BigEndian, streamID&0x7FFFFFFF)
+
+	buf.Write(f.Payload)
+
+	return buf.Bytes(), nil
+}
+
+func (f *Frame) BuildDataFrame(data string, stream uint32) ([]byte, error) {
+	f.Type = FrameData
+	f.Length = uint32(len(data))
+	f.Flags = 0x01 // END_STREAM
+	f.StreamID = stream
+	f.Payload = []byte(data)
+
+	buf := bytes.Buffer{}
+
+	lenBytes, err := convertLengthToBytes(f.Length)
+	if err != nil {
+		return nil, err
+	}
+
+	buf.Write(lenBytes)
+	buf.WriteByte(0x00)
+	buf.WriteByte(f.Flags)
+	binary.Write(&buf, binary.BigEndian, stream&0x7FFFFFFF)
+
+	buf.Write(f.Payload)
+
+	return buf.Bytes(), nil
+}
+
+func convertLengthToBytes(length uint32) ([]byte, error) {
+	if length > 0xFFFFFF {
+		return nil, fmt.Errorf("length to convert exceeds 3-byte limit: %d", length)
+	}
+
+	return []byte{
+		byte((length >> 16) & 0xFF),
+		byte((length >> 8) & 0xFF),
+		byte(length & 0xFF),
+	}, nil
 }

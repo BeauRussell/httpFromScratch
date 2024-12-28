@@ -67,7 +67,8 @@ func handleHTTPConnection(conn net.Conn) {
 
 		switch frame.Type {
 		case framePackaging.FrameData:
-			fmt.Printf("DATA frame payload: %s\n", string(frame.Payload))
+			fmt.Println("Got frame data, building response:", string(frame.Payload))
+			sendDataPackets(conn, frame)
 		case framePackaging.FrameHeaders:
 			fmt.Println("HEADERS frame received")
 		case framePackaging.FrameSettings:
@@ -75,5 +76,37 @@ func handleHTTPConnection(conn net.Conn) {
 		default:
 			fmt.Printf("Unknown frame type: %d\n", frame.Type)
 		}
+	}
+}
+
+func sendDataPackets(conn net.Conn, receivedFrame *framePackaging.Frame) {
+	headerFrame := &framePackaging.Frame{}
+	headers := map[string]string{
+		":status":      "200",
+		"content-type": "text/plain",
+	}
+	headerPacket, err := headerFrame.BuildHeadersFrame(headers, receivedFrame.StreamID)
+	fmt.Println(headerPacket)
+	if err != nil {
+		fmt.Println("Failed to build header packet", err)
+		return
+	}
+	_, err = conn.Write(headerPacket)
+	if err != nil {
+		fmt.Println("Failed to send header packet", err)
+		return
+	}
+
+	dataFrame := &framePackaging.Frame{}
+	dataPacket, err := dataFrame.BuildDataFrame(string(receivedFrame.Payload), receivedFrame.StreamID)
+	if err != nil {
+		fmt.Println("Failed to build data packet:", err)
+		return
+	}
+	fmt.Println(dataPacket)
+	_, err = conn.Write(dataPacket)
+	if err != nil {
+		fmt.Println("Failed to send data packet:", err)
+		return
 	}
 }
